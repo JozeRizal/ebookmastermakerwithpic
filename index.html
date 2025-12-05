@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ebook Master Maker (Fixed)</title>
+    <title>Ebook Master Maker (Final Fixed)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://unpkg.com/html-to-docx@1.8.0/dist/html-to-docx.js"></script>
     <script type="importmap">
       {
         "imports": {
@@ -64,7 +63,7 @@
                                         👁️
                                     </button>
                                 </div>
-                                <p class="text-xs text-gray-500 mt-1">Gunakan API Key dari Google AI Studio (Gratis).</p>
+                                <p class="text-xs text-gray-500 mt-1">Digunakan untuk teks (Gemini). Gambar menggunakan Pollinations (Gratis).</p>
                             </div>
                             <div>
                                 <label for="problem-input" class="font-semibold block mb-2">Jelaskan Masalah Anda:</label>
@@ -164,7 +163,7 @@
     </div>
 
     <footer class="text-center py-6 text-sm text-gray-500">
-        <p>© 2025. Ebook Master Maker v2.2 (Fixed)</p>
+        <p>© 2025. Ebook Master Maker v2.3 (Final Fixed)</p>
     </footer>
 
     <div id="custom-modal-overlay" class="modal-overlay">
@@ -180,7 +179,7 @@
     <div id="image-gen-modal-overlay" class="modal-overlay">
         <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-2xl">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-2xl font-bold text-gray-900">Buat Gambar untuk Bab</h3>
+                <h3 class="text-2xl font-bold text-gray-900">Buat Gambar (Gratis)</h3>
                 <button id="image-gen-modal-btn-close" class="text-gray-500 hover:text-gray-800">&times;</button>
             </div>
             
@@ -188,22 +187,23 @@
                 <div>
                     <label for="image-gen-prompt" class="font-semibold block mb-2">Prompt Gambar:</label>
                     <textarea id="image-gen-prompt" class="w-full p-3 border border-gray-300 rounded-lg" rows="4"></textarea>
+                    <p class="text-xs text-gray-500 mt-1">Menggunakan mesin Pollinations.ai (Model Flux). Tidak memotong kuota Google Anda.</p>
                 </div>
 
                 <div>
                     <label class="font-semibold block mb-2">Gaya Gambar:</label>
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         <label class="border border-gray-300 rounded-lg p-2 flex items-center gap-2 cursor-pointer hover:bg-gray-50">
-                            <input type="radio" name="image-style" value="ilustrasi vektor" checked class="text-indigo-600"> <span>Vektor</span>
+                            <input type="radio" name="image-style" value="vector illustration" checked class="text-indigo-600"> <span>Vektor</span>
                         </label>
                         <label class="border border-gray-300 rounded-lg p-2 flex items-center gap-2 cursor-pointer hover:bg-gray-50">
-                            <input type="radio" name="image-style" value="fotografi realistis" class="text-indigo-600"> <span>Foto</span>
+                            <input type="radio" name="image-style" value="realistic photo" class="text-indigo-600"> <span>Foto</span>
                         </label>
                         <label class="border border-gray-300 rounded-lg p-2 flex items-center gap-2 cursor-pointer hover:bg-gray-50">
-                            <input type="radio" name="image-style" value="kartun" class="text-indigo-600"> <span>Kartun</span>
+                            <input type="radio" name="image-style" value="cartoon style" class="text-indigo-600"> <span>Kartun</span>
                         </label>
                         <label class="border border-gray-300 rounded-lg p-2 flex items-center gap-2 cursor-pointer hover:bg-gray-50">
-                            <input type="radio" name="image-style" value="lukisan digital" class="text-indigo-600"> <span>Lukisan</span>
+                            <input type="radio" name="image-style" value="digital painting" class="text-indigo-600"> <span>Lukisan</span>
                         </label>
                     </div>
                 </div>
@@ -300,14 +300,15 @@
         };
         let ebookState = { ...defaultState };
 
-        // --- Helper: Get Generative Model ---
+        // --- Helper: Get Generative Model (TEXT ONLY - GEMINI) ---
         function getGenAIModel() {
             const apiKey = apiKeyInput.value.trim();
             if (!apiKey) {
-                customAlert('Harap masukkan Google AI API Key Anda di Langkah 1.');
+                customAlert('Harap masukkan Google AI API Key Anda di Langkah 1 untuk membuat Teks.');
                 return null;
             }
             try {
+                // Gunakan model flash yang stabil
                 const genAI = new GoogleGenerativeAI(apiKey);
                 return genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
             } catch (e) {
@@ -408,47 +409,31 @@
             }
         }
 
-        // --- IMAGE GENERATION FUNCTION (FIXED) ---
-        // Menggunakan SDK untuk teks, tapi fetch manual untuk gambar karena SDK text model tidak handle imagen endpoint langsung
+        // --- IMAGE GENERATION FUNCTION (POLLINATIONS.AI - NO API KEY NEEDED) ---
         async function callImageGenAPI(prompt) {
-            const apiKey = apiKeyInput.value.trim(); // <-- FIX: Ambil API Key dari input!
-            
-            if (!apiKey) {
-                customAlert("Masukkan API Key dulu!");
-                return null;
-            }
-
-            // Endpoint Imagen-3 (Standard Beta)
-            // Catatan: Jika akun API Key Anda belum di-whitelist untuk Imagen, ini mungkin error 403.
-            const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${apiKey}`;
-
-            const payload = {
-                instances: [{ prompt: prompt }],
-                parameters: { sampleCount: 1, aspectRatio: "16:9" }
-            };
+            // URL Encode prompt
+            const encodedPrompt = encodeURIComponent(prompt);
+            // Gunakan Pollinations dengan model Flux untuk kualitas bagus
+            const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=576&model=flux&nologo=true`;
 
             try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                // Fetch image blob
+                const response = await fetch(imageUrl);
+                if (!response.ok) throw new Error("Gagal mengambil gambar dari server Pollinations.");
+
+                const blob = await response.blob();
+                
+                // Convert Blob to Base64 (Wajib untuk PDF export)
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
                 });
 
-                if (!response.ok) {
-                    const errText = await response.text();
-                    throw new Error(`API Error ${response.status}: ${errText}`);
-                }
-                
-                const result = await response.json();
-                if (result.predictions && result.predictions[0]?.bytesBase64Encoded) {
-                    return `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
-                } else {
-                    throw new Error("Format respons API tidak dikenali.");
-                }
             } catch (error) {
                 console.error("Image Gen Error:", error);
-                // Fallback attempt message
-                imgGenError.textContent = `Gagal: ${error.message}. Pastikan API Key mendukung Imagen.`;
+                imgGenError.textContent = `Gagal: ${error.message}. Coba lagi nanti.`;
                 return null;
             }
         }
@@ -564,8 +549,8 @@
                 html += `
                 <div id="chap-${idx}" class="mt-6 page-break relative group">
                     <div class="absolute top-0 right-0 opacity-0 group-hover:opacity-100 flex gap-2">
-                        <button onclick="window.openImgModal(${idx})" class="bg-blue-100 text-blue-600 px-2 py-1 rounded text-xs">🖼️ Gambar</button>
-                        <button onclick="window.delChap(${idx})" class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs">🗑️ Hapus</button>
+                        <button onclick="window.openImgModal(${idx})" class="bg-blue-100 text-blue-600 px-2 py-1 rounded text-xs hover:bg-blue-200">🖼️ Gambar</button>
+                        <button onclick="window.delChap(${idx})" class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs hover:bg-red-200">🗑️ Hapus</button>
                     </div>
                     ${topImgs}
                     <h2 contenteditable="true" class="text-2xl font-bold border-b pb-2 mb-3">Bab ${idx+1}: ${ch.title}</h2>
@@ -628,7 +613,7 @@
             imgGenLoader.classList.remove('hidden');
             imgGenPreview.classList.add('hidden');
             
-            const base64 = await callImageGenAPI(`Gaya ${style}: ${prompt}`);
+            const base64 = await callImageGenAPI(`${style} style of ${prompt}`);
             imgGenLoader.classList.add('hidden');
             if(base64) {
                 generatedImageData = base64;
